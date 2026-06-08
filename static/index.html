@@ -57,7 +57,7 @@
       margin-bottom: 0.35rem;
     }
 
-    input[type="text"], input[type="file"] {
+    input[type="text"], input[type="file"], input[type="date"] {
       width: 100%;
       padding: 0.55rem 0.75rem;
       border: 1px solid #cbd5e0;
@@ -67,10 +67,24 @@
       background: #f7fafc;
       transition: border-color .2s;
     }
-    input[type="text"]:focus, input[type="file"]:focus {
+    input[type="text"]:focus, input[type="file"]:focus, input[type="date"]:focus {
       outline: none;
       border-color: #63b3ed;
       background: #fff;
+    }
+
+    /* 日付範囲 */
+    .date-range {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .date-range > div { flex: 1; }
+    .date-sep {
+      font-size: 1rem;
+      color: #a0aec0;
+      flex-shrink: 0;
+      padding-bottom: 0.1rem;
     }
 
     .form-group { margin-bottom: 1.1rem; }
@@ -94,6 +108,36 @@
     .drop-zone .icon { font-size: 2rem; margin-bottom: 0.5rem; }
     .drop-zone p { font-size: 0.85rem; color: #2b6cb0; font-weight: 600; }
     .drop-zone .file-name { font-size: 0.8rem; color: #4a5568; margin-top: 0.4rem; }
+
+    /* 選択済みファイルリスト */
+    .file-list {
+      margin-top: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    .file-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #fff;
+      border: 1px solid #bee3f8;
+      border-radius: 6px;
+      padding: 0.35rem 0.6rem;
+      font-size: 0.8rem;
+      color: #2d3748;
+    }
+    .file-item .remove-btn {
+      background: none;
+      border: none;
+      color: #e53e3e;
+      cursor: pointer;
+      font-size: 1rem;
+      line-height: 1;
+      padding: 0 0.2rem;
+      flex-shrink: 0;
+    }
+    .file-item .remove-btn:hover { color: #c53030; }
 
     /* ボタン */
     .btn {
@@ -194,17 +238,15 @@
   <div class="card">
     <h2>① 設定・ファイル選択</h2>
 
-    <div class="form-group" style="display:flex; gap:0.75rem; align-items:flex-end;">
-      <div style="flex:1;">
-        <label for="date-from">開始日</label>
-        <input type="date" id="date-from" />
+    <div class="form-group">
+      <label>対象期間</label>
+      <div class="date-range">
+        <div><input type="date" id="date-from" /></div>
+        <span class="date-sep">〜</span>
+        <div><input type="date" id="date-to" /></div>
       </div>
-      <div style="flex:1;">
-        <label for="date-to">終了日</label>
-        <input type="date" id="date-to" />
-      </div>
+      <p class="hint">空欄のまま実行すると先月全体が対象になります</p>
     </div>
-    <p class="hint" style="margin-top:-0.75rem; margin-bottom:1rem;">空欄のまま実行すると先月全体が対象になります</p>
 
     <div class="form-group">
       <label for="output-name">出力ファイル名（拡張子不要）</label>
@@ -219,6 +261,7 @@
         <p>クリックまたはドラッグ＆ドロップ（複数ファイル可）</p>
         <div class="file-name" id="file-label">ファイルが選択されていません</div>
       </div>
+      <div class="file-list" id="file-list"></div>
     </div>
 
     <button class="btn btn-primary" id="run-btn" disabled>▶ 集計を実行</button>
@@ -252,20 +295,50 @@
     let selectedFiles = [];
     let lastFilename  = null;
 
+    const fileList = document.getElementById('file-list');
+
     // ファイル選択
     fileInput.addEventListener('change', () => {
-      if (fileInput.files.length) setFiles(Array.from(fileInput.files));
+      if (fileInput.files.length) addFiles(Array.from(fileInput.files));
+      fileInput.value = '';
     });
     dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
     dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
     dropZone.addEventListener('drop', e => {
       e.preventDefault();
       dropZone.classList.remove('drag-over');
-      if (e.dataTransfer.files.length) setFiles(Array.from(e.dataTransfer.files));
+      if (e.dataTransfer.files.length) addFiles(Array.from(e.dataTransfer.files));
     });
-    function setFiles(fs) {
-      selectedFiles = fs;
-      fileLabel.textContent = fs.map(f => f.name).join('、');
+
+    function addFiles(fs) {
+      const existing = new Set(selectedFiles.map(f => f.name));
+      fs.forEach(f => { if (!existing.has(f.name)) selectedFiles.push(f); });
+      renderFileList();
+    }
+
+    function removeFile(name) {
+      selectedFiles = selectedFiles.filter(f => f.name !== name);
+      renderFileList();
+    }
+
+    function renderFileList() {
+      fileList.innerHTML = '';
+      if (selectedFiles.length === 0) {
+        fileLabel.textContent = 'ファイルが選択されていません';
+        runBtn.disabled = true;
+        return;
+      }
+      fileLabel.textContent = `${selectedFiles.length} ファイル選択済み`;
+      selectedFiles.forEach(f => {
+        const item = document.createElement('div');
+        item.className = 'file-item';
+        item.innerHTML = `<span>${f.name}</span><button class="remove-btn" title="削除">×</button>`;
+        item.querySelector('.remove-btn').addEventListener('click', e => {
+          e.stopPropagation();
+          removeFile(f.name);
+        });
+        fileList.appendChild(item);
+      });
       runBtn.disabled = false;
     }
 
