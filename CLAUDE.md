@@ -6,6 +6,45 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 口コミ集計ツール — お客様レビューデータ（Excel/CSV）を読み込み、楽楽販売のCRM APIで電話番号から工事店を特定し、評価を集計してGoogleスプレッドシートへアップロード・Excelレポートを生成するWebアプリ。
 
+## 本番環境
+
+| 項目 | 値 |
+|------|-----|
+| URL | https://kuchikomi-research.l-stg.com |
+| サーバー内部ポート | 127.0.0.1:8004 |
+| プロジェクトパス | /root/project/kuchikomi_research |
+| systemd サービス名 | kuchikomi-research |
+| Nginx 設定 | /etc/nginx/sites-available/kuchikomi-research |
+| SSL証明書 | /etc/letsencrypt/live/kuchikomi-research.l-stg.com/ (Certbot管理) |
+
+### サービス操作
+
+```bash
+# 状態確認
+systemctl status kuchikomi-research
+
+# 再起動
+systemctl restart kuchikomi-research
+
+# 起動 / 停止
+systemctl start kuchikomi-research
+systemctl stop kuchikomi-research
+
+# ログ確認
+journalctl -u kuchikomi-research -f
+journalctl -u kuchikomi-research --since "1 hour ago"
+```
+
+### Nginx 操作
+
+```bash
+# 設定テスト
+nginx -t
+
+# Nginx 再読み込み (設定変更後)
+systemctl reload nginx
+```
+
 ## Development
 
 ```bash
