@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>口コミ集計ツール</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Hiragino Sans", "Meiryo", sans-serif;
+      background: #f0f4f8;
+      color: #2d3748;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #2b6cb0;
+      margin-bottom: 0.25rem;
+    }
+    .subtitle {
+      font-size: 0.85rem;
+      color: #718096;
+      margin-bottom: 2rem;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.08);
+      padding: 2rem;
+      width: 100%;
+      max-width: 680px;
+      margin-bottom: 1.5rem;
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #2b6cb0;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid #bee3f8;
+    }
+
+    label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #4a5568;
+      margin-bottom: 0.35rem;
+    }
+
+    input[type="text"], input[type="file"] {
+      width: 100%;
+      padding: 0.55rem 0.75rem;
+      border: 1px solid #cbd5e0;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      color: #2d3748;
+      background: #f7fafc;
+      transition: border-color .2s;
+    }
+    input[type="text"]:focus, input[type="file"]:focus {
+      outline: none;
+      border-color: #63b3ed;
+      background: #fff;
+    }
+
+    .form-group { margin-bottom: 1.1rem; }
+    .hint { font-size: 0.75rem; color: #718096; margin-top: 0.25rem; }
+
+    /* ドロップゾーン */
+    .drop-zone {
+      border: 2px dashed #bee3f8;
+      border-radius: 10px;
+      background: #ebf8ff;
+      text-align: center;
+      padding: 1.75rem 1rem;
+      cursor: pointer;
+      transition: background .2s, border-color .2s;
+      position: relative;
+    }
+    .drop-zone.drag-over { background: #bee3f8; border-color: #4299e1; }
+    .drop-zone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .drop-zone .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+    .drop-zone p { font-size: 0.85rem; color: #2b6cb0; font-weight: 600; }
+    .drop-zone .file-name { font-size: 0.8rem; color: #4a5568; margin-top: 0.4rem; }
+
+    /* ボタン */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.65rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity .2s, transform .1s;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-primary { background: #3182ce; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #2c5282; }
+    .btn-success { background: #38a169; color: #fff; }
+    .btn-success:hover:not(:disabled) { background: #276749; }
+
+    /* ステータスバー */
+    #status-bar {
+      display: none;
+      align-items: center;
+      gap: 0.75rem;
+      background: #ebf8ff;
+      border: 1px solid #bee3f8;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      margin-top: 1rem;
+      font-size: 0.88rem;
+    }
+    .spinner {
+      width: 20px; height: 20px;
+      border: 3px solid #bee3f8;
+      border-top-color: #3182ce;
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* 結果カード */
+    #result-card { display: none; }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+    .stat {
+      background: #f7fafc;
+      border-radius: 8px;
+      padding: 0.75rem;
+      text-align: center;
+    }
+    .stat .val { font-size: 1.6rem; font-weight: 700; color: #2b6cb0; }
+    .stat .lbl { font-size: 0.72rem; color: #718096; margin-top: 0.2rem; }
+
+    /* 完了バナー */
+    #done-box {
+      display: none;
+      background: #f0fff4;
+      border: 1px solid #9ae6b4;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      margin-top: 1rem;
+      font-size: 0.88rem;
+      color: #276749;
+      display: none;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    /* エラー */
+    #error-box {
+      display: none;
+      background: #fff5f5;
+      border: 1px solid #feb2b2;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      margin-top: 1rem;
+      font-size: 0.85rem;
+      color: #c53030;
+    }
+
+    .actions { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1.25rem; }
+  </style>
+</head>
+<body>
+
+  <h1>📊 口コミ集計ツール</h1>
+  <p class="subtitle">楽楽販売と紐づけて施工店別の評価を自動集計します</p>
+
+  <!-- 入力フォーム -->
+  <div class="card">
+    <h2>① 設定・ファイル選択</h2>
+
+    <div class="form-group" style="display:flex; gap:0.75rem; align-items:flex-end;">
+      <div style="flex:1;">
+        <label for="date-from">開始日</label>
+        <input type="date" id="date-from" />
+      </div>
+      <div style="flex:1;">
+        <label for="date-to">終了日</label>
+        <input type="date" id="date-to" />
+      </div>
+    </div>
+    <p class="hint" style="margin-top:-0.75rem; margin-bottom:1rem;">空欄のまま実行すると先月全体が対象になります</p>
+
+    <div class="form-group">
+      <label for="output-name">出力ファイル名（拡張子不要）</label>
+      <input type="text" id="output-name" placeholder="例: 口コミ_2026年6月第1週　（空欄で自動生成）" />
+    </div>
+
+    <div class="form-group">
+      <label>口コミファイル（.xlsx / .xls / .csv）※複数選択可</label>
+      <div class="drop-zone" id="drop-zone">
+        <input type="file" id="file-input" accept=".xlsx,.xls,.csv" multiple />
+        <div class="icon">📂</div>
+        <p>クリックまたはドラッグ＆ドロップ（複数ファイル可）</p>
+        <div class="file-name" id="file-label">ファイルが選択されていません</div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="run-btn" disabled>▶ 集計を実行</button>
+
+    <div id="status-bar">
+      <div class="spinner"></div>
+      <span id="status-msg">処理中...</span>
+    </div>
+
+    <div id="done-box">
+      <span>✅</span>
+      <span id="done-msg"></span>
+      <button class="btn btn-success" id="download-btn" style="margin-left:auto;">⬇ Excelダウンロード</button>
+    </div>
+
+    <div id="error-box"></div>
+  </div>
+
+  <script>
+    const fileInput   = document.getElementById('file-input');
+    const fileLabel   = document.getElementById('file-label');
+    const dropZone    = document.getElementById('drop-zone');
+    const runBtn      = document.getElementById('run-btn');
+    const statusBar   = document.getElementById('status-bar');
+    const statusMsg   = document.getElementById('status-msg');
+    const errorBox    = document.getElementById('error-box');
+    const doneBox     = document.getElementById('done-box');
+    const doneMsg     = document.getElementById('done-msg');
+    const downloadBtn = document.getElementById('download-btn');
+
+    let selectedFiles = [];
+    let lastFilename  = null;
+
+    // ファイル選択
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length) setFiles(Array.from(fileInput.files));
+    });
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      if (e.dataTransfer.files.length) setFiles(Array.from(e.dataTransfer.files));
+    });
+    function setFiles(fs) {
+      selectedFiles = fs;
+      fileLabel.textContent = fs.map(f => f.name).join('、');
+      runBtn.disabled = false;
+    }
+
+    // 実行
+    runBtn.addEventListener('click', async () => {
+      if (!selectedFiles.length) return;
+
+      errorBox.style.display = 'none';
+      doneBox.style.display  = 'none';
+      runBtn.disabled        = true;
+      setStatus('楽楽販売からデータを取得中...');
+
+      const form = new FormData();
+      selectedFiles.forEach(f => form.append('files', f));
+      form.append('date_from',   document.getElementById('date-from').value);
+      form.append('date_to',     document.getElementById('date-to').value);
+      form.append('output_name', document.getElementById('output-name').value.trim());
+
+      try {
+        setStatus('集計処理中...');
+        const res  = await fetch('/api/run', { method: 'POST', body: form });
+        const data = await res.json();
+
+        if (!res.ok) {
+          showError(data.detail || '不明なエラーが発生しました。');
+          return;
+        }
+
+        lastFilename      = data.output_filename;
+        doneMsg.textContent = `完了：${data.output_filename}（${data.total_reviews}件）`;
+        doneBox.style.display = 'flex';
+      } catch (e) {
+        showError('通信エラー: ' + e.message);
+      } finally {
+        statusBar.style.display = 'none';
+        runBtn.disabled         = false;
+      }
+    });
+
+    // ダウンロード
+    downloadBtn.addEventListener('click', () => {
+      if (lastFilename) window.location.href = `/api/download/${encodeURIComponent(lastFilename)}`;
+    });
+
+    function setStatus(msg) {
+      statusMsg.textContent   = msg;
+      statusBar.style.display = 'flex';
+    }
+    function showError(msg) {
+      errorBox.textContent   = '⚠ ' + msg;
+      errorBox.style.display = 'block';
+    }
+  </script>
+</body>
+</html>
